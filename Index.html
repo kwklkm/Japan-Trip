@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>廣島親子冬日自駕遊 Dashboard + AI + 編輯</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Markdown Parser for AI responses -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* Custom Font Import */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f5f5f4; /* stone-100 */
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+
+        /* Hide scrollbar for clean horizontal scrolling */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-active {
+            background-color: #d97706; /* amber-600 */
+            color: white;
+            border-color: #d97706;
+        }
+
+        /* Chat UI Styles */
+        .chat-bubble {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 8px;
+            word-wrap: break-word;
+        }
+        .user-msg {
+            background-color: #d97706;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+        .ai-msg {
+            background-color: #f3f4f6;
+            color: #1f2937;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+            border: 1px solid #e5e7eb;
+        }
+        .ai-msg p { margin-bottom: 0.5em; }
+        .ai-msg ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 0.5em; }
+        .typing-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            margin-right: 3px;
+            background-color: #9ca3af;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* Edit Mode Styles */
+        .edit-input {
+            border: 1px solid #d6d3d1;
+            padding: 4px 8px;
+            border-radius: 4px;
+            width: 100%;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+        .edit-input:focus {
+            outline: none;
+            border-color: #d97706;
+            box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+        }
+    </style>
+    <!-- Chosen Palette: Warm Neutrals (Stone/Amber/Teal) -->
+    <!-- Application Structure Plan: 
+         Updated with Edit Functionality in Itinerary View.
+         - Added "Edit Mode" toggle.
+         - Uses LocalStorage to persist changes.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="text-stone-800">
+
+    <!-- App Container -->
+    <div class="max-w-4xl mx-auto min-h-screen bg-white shadow-xl overflow-hidden flex flex-col relative">
+
+        <!-- Header -->
+        <header class="bg-stone-800 text-stone-100 p-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold tracking-wide">廣島冬日親子自駕冒險</h1>
+                    <p class="text-stone-400 mt-1">12月26日 - 12月31日 | 6天5夜</p>
+                </div>
+                <div class="mt-4 md:mt-0 flex gap-2">
+                    <button onclick="resetData()" class="text-xs text-stone-500 underline hover:text-stone-300 mr-2">恢復預設值</button>
+                    <span class="bg-stone-700 px-3 py-1 rounded-full text-xs">🚗 全程自駕</span>
+                    <span class="bg-stone-700 px-3 py-1 rounded-full text-xs">🏨 b hotel アーツ土橋</span>
+                </div>
+            </div>
+            <div class="mt-6 grid grid-cols-4 gap-2 text-center text-sm">
+                <div class="bg-stone-700 rounded p-2">
+                    <div class="font-bold text-amber-400">👨 爸爸</div>
+                    <div class="text-xs text-stone-300">美食擔當</div>
+                </div>
+                <div class="bg-stone-700 rounded p-2">
+                    <div class="font-bold text-rose-400">👩 媽媽</div>
+                    <div class="text-xs text-stone-300">購物/美拍</div>
+                </div>
+                <div class="bg-stone-700 rounded p-2">
+                    <div class="font-bold text-sky-400">👦 13歲</div>
+                    <div class="text-xs text-stone-300">軍艦/模型</div>
+                </div>
+                <div class="bg-stone-700 rounded p-2">
+                    <div class="font-bold text-sky-400">👶 9歲</div>
+                    <div class="text-xs text-stone-300">釣魚/車車</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="flex overflow-x-auto no-scrollbar border-b border-stone-200 bg-stone-50 sticky top-0 z-10">
+            <button onclick="switchTab('itinerary')" id="tab-itinerary" class="flex-1 py-4 px-6 font-semibold text-stone-600 hover:text-amber-600 border-b-4 border-transparent focus:outline-none whitespace-nowrap btn-active transition-colors duration-300">
+                📅 每日行程
+            </button>
+            <button onclick="switchTab('analysis')" id="tab-analysis" class="flex-1 py-4 px-6 font-semibold text-stone-600 hover:text-amber-600 border-b-4 border-transparent focus:outline-none whitespace-nowrap transition-colors duration-300">
+                📊 行程分析
+            </button>
+            <button onclick="switchTab('food')" id="tab-food" class="flex-1 py-4 px-6 font-semibold text-stone-600 hover:text-amber-600 border-b-4 border-transparent focus:outline-none whitespace-nowrap transition-colors duration-300">
+                🍱 必吃清單
+            </button>
+            <button onclick="switchTab('tips')" id="tab-tips" class="flex-1 py-4 px-6 font-semibold text-stone-600 hover:text-amber-600 border-b-4 border-transparent focus:outline-none whitespace-nowrap transition-colors duration-300">
+                📝 攻略與貼士
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="flex-grow p-4 md:p-6 bg-stone-50 overflow-y-auto pb-24">
+
+            <!-- VIEW: ITINERARY -->
+            <div id="view-itinerary" class="fade-in block">
+                <div class="bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 border-amber-500 flex justify-between items-start">
+                    <div>
+                        <h2 class="text-lg font-bold text-stone-800 mb-2">行程探索指南</h2>
+                        <p class="text-stone-600 text-sm">
+                            點擊日期卡片查看安排。點擊右側「編輯」按鈕可修改行程內容，所有修改會自動儲存。
+                        </p>
+                    </div>
+                    <button id="edit-toggle-btn" onclick="toggleEditMode()" class="bg-stone-100 text-stone-600 px-3 py-1 rounded border border-stone-300 hover:bg-amber-100 hover:text-amber-700 hover:border-amber-400 transition-colors text-sm font-bold flex items-center gap-1">
+                        ✏️ 編輯行程
+                    </button>
+                </div>
+
+                <!-- Day Selector -->
+                <div class="flex overflow-x-auto gap-3 pb-4 mb-2 no-scrollbar" id="day-selector">
+                    <!-- JS will populate buttons -->
+                </div>
+
+                <!-- Active Day Details -->
+                <div id="day-details-container" class="space-y-4">
+                    <!-- JS will populate details -->
+                </div>
+            </div>
+
+            <!-- VIEW: ANALYSIS -->
+            <div id="view-analysis" class="hidden fade-in">
+                <div class="bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 border-purple-500">
+                    <h2 class="text-lg font-bold text-stone-800 mb-2">家庭興趣平衡分析</h2>
+                    <p class="text-stone-600 text-sm">
+                        這是一個滿足所有人的行程嗎？我們通過數據視覺化來分析這次旅行的構成。
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Radar Chart -->
+                    <div class="bg-white p-4 rounded-xl shadow border border-stone-100">
+                        <h3 class="font-bold text-center mb-4 text-stone-700">興趣滿意度分佈</h3>
+                        <div class="chart-container">
+                            <canvas id="interestChart"></canvas>
+                        </div>
+                        <p class="text-xs text-center text-stone-400 mt-2">基於景點屬性與停留時間權重</p>
+                    </div>
+
+                    <!-- Pie Chart -->
+                    <div class="bg-white p-4 rounded-xl shadow border border-stone-100">
+                        <h3 class="font-bold text-center mb-4 text-stone-700">活動類型佔比</h3>
+                        <div class="chart-container">
+                            <canvas id="activityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Highlights Summary -->
+                <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-sky-50 p-4 rounded-lg border border-sky-100">
+                        <h4 class="font-bold text-sky-800 mb-2">👦 男孩們的收穫</h4>
+                        <ul class="list-disc list-inside text-sm text-sky-700 space-y-1">
+                            <li>真實潛水艇內部探索 (吳市)</li>
+                            <li>交通科學博物館模型與變形單車</li>
+                            <li>山泉水釣魚體驗與現烤鮮魚</li>
+                            <li>宮島水族館的江豚與海洋生物</li>
+                        </ul>
+                    </div>
+                    <div class="bg-rose-50 p-4 rounded-lg border border-rose-100">
+                        <h4 class="font-bold text-rose-800 mb-2">👩 媽媽的時光</h4>
+                        <ul class="list-disc list-inside text-sm text-rose-700 space-y-1">
+                            <li>THE OUTLETS HIROSHIMA 大型購物</li>
+                            <li>本通商店街藥妝與雜貨掃貨</li>
+                            <li>SOGO/Parco 年末折扣季</li>
+                            <li>宮島表參道散策</li>
+                        </ul>
+                    </div>
+                    <div class="bg-amber-50 p-4 rounded-lg border border-amber-100">
+                        <h4 class="font-bold text-amber-800 mb-2">👨 爸爸的美食</h4>
+                        <ul class="list-disc list-inside text-sm text-amber-700 space-y-1">
+                            <li>廣島燒名店巡禮</li>
+                            <li>吳市正宗海軍咖哩</li>
+                            <li>宮島星鰻飯 (穴子飯)</li>
+                            <li>冬季限定蠔小屋炭烤牡蠣</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: FOOD -->
+            <div id="view-food" class="hidden fade-in">
+                <div class="bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 border-amber-600 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-bold text-stone-800 mb-1">廣島必吃美食清單</h2>
+                        <p class="text-stone-600 text-sm">這是為爸爸特別準備的任務清單！</p>
+                    </div>
+                    <button onclick="triggerAIChat('請推薦廣島適合親子用餐的餐廳，特別是有提供兒童餐具和不辣選項的店家。')" class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold hover:bg-amber-200 transition-colors">
+                        ✨ AI 推薦更多美食
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="food-list-container">
+                    <!-- JS will populate -->
+                </div>
+            </div>
+
+            <!-- VIEW: TIPS -->
+            <div id="view-tips" class="hidden fade-in">
+                <div class="bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 border-emerald-500 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-bold text-stone-800 mb-1">自駕與冬季攻略</h2>
+                        <p class="text-stone-600 text-sm">年末旅遊需要特別注意設施營業時間。</p>
+                    </div>
+                    <button onclick="triggerAIChat('請幫我生成一段日文，內容是向餐廳預訂12月30日晚上7點，2大2小，需要兒童椅。')" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold hover:bg-emerald-200 transition-colors">
+                        ✨ AI 生成日文訂位文字
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Tip Card 1 -->
+                    <div class="bg-white border border-stone-200 rounded-lg p-5">
+                        <div class="flex items-start gap-3">
+                            <span class="text-2xl">⚠️</span>
+                            <div>
+                                <h3 class="font-bold text-stone-800">年末年始休館注意</h3>
+                                <p class="text-sm text-stone-600 mt-1">12月29日是分界線。許多公立博物館（如馬自達博物館、圖書館）會在此時開始放年假。</p>
+                                <ul class="mt-2 text-xs bg-red-50 text-red-700 p-2 rounded">
+                                    <li>馬自達博物館：預計 12/27-1/5 休館 (行程已避開)</li>
+                                    <li>大和博物館：本館整修中，請導航至「衛星展館」</li>
+                                    <li>除夕 (12/31)：百貨公司約 18:00 提早打烊</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tip Card 2 -->
+                    <div class="bg-white border border-stone-200 rounded-lg p-5">
+                        <div class="flex items-start gap-3">
+                            <span class="text-2xl">🧥</span>
+                            <div>
+                                <h3 class="font-bold text-stone-800">冬季穿著建議 (2°C - 10°C)</h3>
+                                <p class="text-sm text-stone-600 mt-1">海邊風大，體感溫度會更低。</p>
+                                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                                    <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-400"></span> 防風厚外套 (必備)</div>
+                                    <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-400"></span> 手套/圍巾 (釣魚/乘船時)</div>
+                                    <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-400"></span> 暖暖包</div>
+                                    <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-400"></span> 舒適好走的鞋</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tip Card 3 -->
+                    <div class="bg-white border border-stone-200 rounded-lg p-5">
+                        <div class="flex items-start gap-3">
+                            <span class="text-2xl">🅿️</span>
+                            <div>
+                                <h3 class="font-bold text-stone-800">自駕停車攻略</h3>
+                                <p class="text-sm text-stone-600 mt-1">市區停車費昂貴，善用 "最大料金"。</p>
+                                <ul class="mt-2 text-sm text-stone-600 list-disc list-inside">
+                                    <li>尋找標示「夜間最大料金」的停車場過夜。</li>
+                                    <li>建議使用 Google Maps 標記飯店附近的 Times 或 Repark。</li>
+                                    <li>宮島口搭船處有大型停車場，但在假期上午容易客滿，建議提早出發。</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Floating Action Button for AI Assistant -->
+        <button onclick="toggleAIChat()" class="fixed bottom-6 right-6 bg-stone-800 hover:bg-stone-700 text-amber-400 rounded-full p-4 shadow-2xl transition-all hover:scale-105 z-40 flex items-center gap-2 border-2 border-amber-500/50">
+            <span class="text-2xl">✨</span>
+            <span class="font-bold text-sm hidden md:inline">AI 廣島嚮導</span>
+        </button>
+
+        <!-- AI Chat Modal -->
+        <div id="ai-chat-modal" class="fixed bottom-20 right-6 w-[90vw] md:w-[400px] h-[500px] bg-white rounded-2xl shadow-2xl z-50 flex flex-col hidden border border-stone-200 transition-all transform origin-bottom-right">
+            <!-- Modal Header -->
+            <div class="bg-stone-800 text-stone-100 p-4 rounded-t-2xl flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">✨</span>
+                    <h3 class="font-bold">AI 旅遊小幫手</h3>
+                </div>
+                <button onclick="toggleAIChat()" class="text-stone-400 hover:text-white">✕</button>
+            </div>
+            
+            <!-- Chat History -->
+            <div id="chat-history" class="flex-grow overflow-y-auto p-4 bg-stone-50 flex flex-col gap-2">
+                <div class="ai-msg chat-bubble">
+                    <p>你好！我是你們的廣島旅遊 AI 助理 🤖。</p>
+                    <p>我可以協助你們查詢景點、尋找美食、或是翻譯簡單的日文。有什麼我可以幫忙的嗎？</p>
+                </div>
+                <!-- Suggested Prompts -->
+                <div class="flex flex-wrap gap-2 mt-2">
+                    <button onclick="sendPrompt('推薦給13歲男生的廣島隱藏景點')" class="text-xs bg-white border border-stone-200 px-2 py-1 rounded-full hover:bg-amber-50 hover:border-amber-300 text-stone-600 transition-colors">👦 13歲男生景點</button>
+                    <button onclick="sendPrompt('廣島燒怎麼點餐？幫我翻譯')" class="text-xs bg-white border border-stone-200 px-2 py-1 rounded-full hover:bg-amber-50 hover:border-amber-300 text-stone-600 transition-colors">🗣️ 廣島燒點餐日語</button>
+                    <button onclick="sendPrompt('附近的停車場怎麼找？')" class="text-xs bg-white border border-stone-200 px-2 py-1 rounded-full hover:bg-amber-50 hover:border-amber-300 text-stone-600 transition-colors">🅿️ 尋找停車場</button>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-3 border-t border-stone-200 bg-white rounded-b-2xl">
+                <div class="flex gap-2">
+                    <input type="text" id="chat-input" placeholder="輸入問題..." class="flex-grow px-4 py-2 bg-stone-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" onkeypress="handleKeyPress(event)">
+                    <button onclick="handleUserSend()" class="bg-amber-600 hover:bg-amber-700 text-white p-2 rounded-full w-10 h-10 flex items-center justify-center transition-colors">
+                        ➤
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="bg-stone-100 p-4 text-center text-xs text-stone-500 border-t border-stone-200">
+            廣島自駕遊計畫 | 12/26 - 12/31 | Powered by Gemini AI ✨
+        </footer>
+    </div>
+
+    <script>
+        // --- Data Source with LocalStorage persistence ---
+        
+        const defaultTripData = {
+            days: [
+                {
+                    date: "12/26 (五)",
+                    title: "抵達 & 美食首衝",
+                    icon: "🛬",
+                    color: "border-stone-400",
+                    summary: "機場取車，市區漫步，廣島燒晚餐。",
+                    activities: [
+                        { time: "下午", title: "抵達廣島機場 & 租車", tag: "交通", desc: "前往市區約50分鐘。先在飯店附近找好收費停車場。", icon: "🚗" },
+                        { time: "傍晚", title: "b hotel Check-in", tag: "住宿", desc: "入住 b hotel アーツ土橋，稍作休息。", icon: "🏨" },
+                        { time: "晚上", title: "本通商店街", tag: "購物", role: "mom", desc: "藥妝店、唐吉訶德採買。", icon: "🛍️" },
+                        { time: "晚餐", title: "廣島燒 (Okonomiyaki)", tag: "美食", role: "dad", desc: "推薦「みっちゃん総本店」或「お好み村」。", icon: "🍳" }
+                    ]
+                },
+                {
+                    date: "12/27 (六)",
+                    title: "艦隊與海軍咖哩",
+                    icon: "⚓",
+                    color: "border-sky-500",
+                    summary: "吳市一日遊：潛水艇、博物館、海軍美食。",
+                    activities: [
+                        { time: "上午", title: "前往吳市 (Kure)", tag: "交通", desc: "車程約40分鐘。", icon: "🚗" },
+                        { time: "景點", title: "海上自衛隊吳史料館 (鐵鯨館)", tag: "冒險", role: "boy", desc: "進入巨大退役潛水艇內部參觀，看潛望鏡！", icon: "🚢" },
+                        { time: "景點", title: "大和博物館 (衛星展館)", tag: "歷史", desc: "本館整修中，參觀衛星館與購買紀念品。", icon: "🏛️" },
+                        { time: "午餐", title: "吳市海軍咖哩", tag: "美食", role: "dad", desc: "體驗像潛艇內的鐵盤咖哩飯。", icon: "🍛" },
+                        { time: "下午", title: "アレイからすこじま公園", tag: "冒險", role: "boy", desc: "近距離觀看現役潛水艇停泊。", icon: "📸" }
+                    ]
+                },
+                {
+                    date: "12/28 (日)",
+                    title: "交通科學與購物",
+                    icon: "🏎️",
+                    color: "border-rose-400",
+                    summary: "交通博物館模型與Outlet大型購物。",
+                    activities: [
+                        { time: "上午", title: "Numaji 交通科學博物館", tag: "冒險", role: "boy", desc: "大量車輛模型、戶外變形腳踏車。(趁休館日前參觀)", icon: "🚆" },
+                        { time: "午餐", title: "Outlet 美食街", tag: "美食", desc: "簡單解決，爭取逛街時間。", icon: "🍜" },
+                        { time: "下午", title: "THE OUTLETS HIROSHIMA", tag: "購物", role: "mom", desc: "廣島最大Outlet。有溜冰場、保齡球供爸爸小孩玩樂。", icon: "🛒" },
+                        { time: "晚餐", title: "廣島沾麵 (Tsukemen)", tag: "美食", role: "dad", desc: "Outlet內或回市區吃，喜愛辣味必試。", icon: "🌶️" }
+                    ]
+                },
+                {
+                    date: "12/29 (一)",
+                    title: "宮島世界遺產",
+                    icon: "⛩️",
+                    color: "border-amber-500",
+                    summary: "渡輪、神社、水族館、牡蠣全餐。",
+                    activities: [
+                        { time: "上午", title: "搭渡輪前往宮島", tag: "交通", desc: "宮島口停車，搭船體驗海上看大鳥居。", icon: "⛴️" },
+                        { time: "景點", title: "嚴島神社", tag: "文化", desc: "退潮時可走到大鳥居附近。", icon: "⛩️" },
+                        { time: "午餐", title: "牡蠣屋 & 穴子飯", tag: "美食", role: "dad", desc: "必吃烤蠔與星鰻飯便當。", icon: "🍱" },
+                        { time: "景點", title: "宮島水族館", tag: "自然", role: "boy", desc: "看瀨戶內海生物與可愛江豚。", icon: "🐬" },
+                        { time: "點心", title: "炸紅葉饅頭", tag: "美食", role: "mom", desc: "表參道商店街必吃甜點。", icon: "🍁" }
+                    ]
+                },
+                {
+                    date: "12/30 (二)",
+                    title: "釣魚體驗 & 蠔小屋",
+                    icon: "🎣",
+                    color: "border-emerald-500",
+                    summary: "山中釣魚趣，海邊遊樂園，炭烤牡蠣晚餐。",
+                    activities: [
+                        { time: "上午", title: "湯來釣魚池", tag: "體驗", role: "boy", desc: "安全好釣的虹鱒魚，現場鹽烤超有成就感。", icon: "🎣" },
+                        { time: "下午", title: "Marina Hop", tag: "休閒", desc: "海邊小型遊樂園區+購物中心。", icon: "🎡" },
+                        { time: "晚餐", title: "廣島蠔小屋 (Kakigoya)", tag: "美食", role: "dad", desc: "宇品海岸炭烤帶殼牡蠣，氣氛佳。", icon: "🔥" }
+                    ]
+                },
+                {
+                    date: "12/31 (三)",
+                    title: "最後巡禮 & 返程",
+                    icon: "🛫",
+                    color: "border-stone-600",
+                    summary: "平和公園散步，最後補貨，前往機場。",
+                    activities: [
+                        { time: "上午", title: "平和紀念公園", tag: "文化", desc: "原爆圓頂館，感受歷史氛圍。", icon: "🕊️" },
+                        { time: "中午", title: "市區最後購物", tag: "購物", role: "mom", desc: "SOGO/Parco/Donki。注意除夕18:00提早打烊。", icon: "🛍️" },
+                        { time: "下午", title: "前往廣島機場", tag: "交通", desc: "還車，搭機返家。再見廣島！", icon: "✈️" }
+                    ]
+                }
+            ],
+            foodList: [
+                { name: "廣島燒", note: "必加美乃滋與大量青蔥", icon: "🍳" },
+                { name: "廣島牡蠣", note: "烤的、炸的都要試", icon: "🦪" },
+                { name: "穴子飯", note: "宮島名物，星鰻便當", icon: "🍱" },
+                { name: "炸紅葉饅頭", note: "外酥內軟甜點", icon: "🍁" },
+                { name: "海軍咖哩", note: "吳市特色，金屬盤裝", icon: "🍛" },
+                { name: "廣島沾麵", note: "辛辣冷麵，很開胃", icon: "🍜" },
+                { name: "鹽烤虹鱒", note: "自釣自吃最美味", icon: "🐟" }
+            ]
+        };
+
+        // Load data from LocalStorage or use default
+        let tripData;
+        const storedData = localStorage.getItem('hiroshimaTripData_v2');
+        if (storedData) {
+            tripData = JSON.parse(storedData);
+        } else {
+            tripData = JSON.parse(JSON.stringify(defaultTripData)); // Deep copy
+        }
+
+        let currentDayIndex = 0;
+        let isEditMode = false;
+
+        // --- Core Functions ---
+
+        function initApp() {
+            renderDaySelector();
+            renderDayDetails(0);
+            renderFoodList();
+            initCharts();
+        }
+
+        // Save to local storage
+        function saveData() {
+            localStorage.setItem('hiroshimaTripData_v2', JSON.stringify(tripData));
+            initCharts(); // Update charts to reflect changes
+        }
+
+        function resetData() {
+            if(confirm("確定要重置所有行程回到預設值嗎？所有的修改都會遺失。")) {
+                localStorage.removeItem('hiroshimaTripData_v2');
+                location.reload();
+            }
+        }
+
+        function switchTab(tabName) {
+            if (isEditMode && tabName !== 'itinerary') {
+                alert("請先儲存或取消編輯模式");
+                return;
+            }
+            // Hide all views
+            ['itinerary', 'analysis', 'food', 'tips'].forEach(id => {
+                document.getElementById(`view-${id}`).classList.add('hidden');
+                document.getElementById(`tab-${id}`).classList.remove('btn-active');
+                document.getElementById(`tab-${id}`).classList.remove('border-amber-600');
+            });
+
+            // Show selected view
+            const selectedView = document.getElementById(`view-${tabName}`);
+            selectedView.classList.remove('hidden');
+            selectedView.classList.add('fade-in');
+
+            // Style active tab
+            const activeTab = document.getElementById(`tab-${tabName}`);
+            activeTab.classList.add('btn-active');
+            activeTab.classList.add('border-amber-600');
+        }
+
+        // --- Itinerary Logic ---
+
+        function renderDaySelector() {
+            const container = document.getElementById('day-selector');
+            container.innerHTML = tripData.days.map((day, index) => `
+                <button onclick="selectDay(${index})" 
+                        id="day-btn-${index}"
+                        class="day-btn flex-shrink-0 w-24 md:w-32 p-3 rounded-lg border-2 ${index === 0 ? 'border-amber-500 bg-amber-50' : 'border-stone-200 bg-white'} hover:border-amber-300 transition-all text-left group">
+                    <div class="text-xs text-stone-400 font-bold">${day.date}</div>
+                    <div class="text-2xl mt-1 group-hover:scale-110 transition-transform">${day.icon}</div>
+                    <div class="text-xs text-stone-600 mt-1 truncate font-medium">${day.title.split('&')[0]}</div>
+                </button>
+            `).join('');
+        }
+
+        function selectDay(index) {
+            if (isEditMode) {
+                if(!confirm("正在編輯中，切換日期將自動儲存當前修改，確定嗎？")) return;
+                saveItinerary(); // Auto save
+            }
+            
+            currentDayIndex = index;
+            // Update buttons style
+            const buttons = document.querySelectorAll('.day-btn');
+            buttons.forEach((btn, idx) => {
+                if (idx === index) {
+                    btn.classList.remove('border-stone-200', 'bg-white');
+                    btn.classList.add('border-amber-500', 'bg-amber-50');
+                } else {
+                    btn.classList.add('border-stone-200', 'bg-white');
+                    btn.classList.remove('border-amber-500', 'bg-amber-50');
+                }
+            });
+            renderDayDetails(index);
+        }
+
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('edit-toggle-btn');
+            
+            if (isEditMode) {
+                btn.innerHTML = '💾 儲存修改';
+                btn.classList.remove('bg-stone-100', 'text-stone-600');
+                btn.classList.add('bg-amber-600', 'text-white', 'border-amber-600');
+            } else {
+                saveItinerary(); // Save when toggling off
+                btn.innerHTML = '✏️ 編輯行程';
+                btn.classList.add('bg-stone-100', 'text-stone-600');
+                btn.classList.remove('bg-amber-600', 'text-white', 'border-amber-600');
+            }
+            renderDayDetails(currentDayIndex);
+        }
+
+        function saveItinerary() {
+            if (!isEditMode) return; // Already saved or not in edit mode
+            
+            // Collect data from inputs
+            const dayContainer = document.getElementById('day-details-container');
+            const activityDivs = dayContainer.querySelectorAll('.activity-card');
+            
+            const newActivities = [];
+            activityDivs.forEach(div => {
+                const time = div.querySelector('.input-time').value;
+                const tag = div.querySelector('.input-tag').value;
+                const role = div.querySelector('.input-role').value;
+                const icon = div.querySelector('.input-icon').value;
+                const title = div.querySelector('.input-title').value;
+                const desc = div.querySelector('.input-desc').value;
+                
+                newActivities.push({ time, tag, role, icon, title, desc });
+            });
+            
+            tripData.days[currentDayIndex].activities = newActivities;
+            saveData();
+        }
+
+        function addActivity() {
+            tripData.days[currentDayIndex].activities.push({
+                time: "時間",
+                title: "新活動",
+                tag: "一般",
+                role: "",
+                desc: "請輸入活動描述",
+                icon: "📍"
+            });
+            renderDayDetails(currentDayIndex);
+        }
+
+        function deleteActivity(actIndex) {
+            if(confirm("確定刪除此活動？")) {
+                tripData.days[currentDayIndex].activities.splice(actIndex, 1);
+                renderDayDetails(currentDayIndex);
+            }
+        }
+
+        function renderDayDetails(index) {
+            const day = tripData.days[index];
+            const container = document.getElementById('day-details-container');
+            
+            // --- READ MODE ---
+            if (!isEditMode) {
+                const activitiesHtml = day.activities.map(act => {
+                    let roleBadge = '';
+                    let borderClass = 'border-l-4 border-stone-200';
+                    
+                    if (act.role === 'boy') {
+                        roleBadge = '<span class="ml-2 bg-sky-100 text-sky-700 text-xs px-2 py-0.5 rounded-full font-bold">👦 男孩</span>';
+                        borderClass = 'border-l-4 border-sky-400';
+                    } else if (act.role === 'mom') {
+                        roleBadge = '<span class="ml-2 bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded-full font-bold">👩 媽媽</span>';
+                        borderClass = 'border-l-4 border-rose-400';
+                    } else if (act.role === 'dad') {
+                        roleBadge = '<span class="ml-2 bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full font-bold">👨 爸爸</span>';
+                        borderClass = 'border-l-4 border-amber-400';
+                    }
+
+                    return `
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-stone-100 ${borderClass} hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono text-stone-400 text-sm font-bold bg-stone-100 px-2 rounded">${act.time}</span>
+                                <span class="text-sm text-stone-400">|</span>
+                                <span class="text-stone-500 text-xs border border-stone-200 px-1 rounded">${act.tag}</span>
+                                ${roleBadge}
+                            </div>
+                            <span class="text-2xl">${act.icon}</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-stone-800">${act.title}</h3>
+                        <p class="text-stone-600 mt-1 text-sm">${act.desc}</p>
+                    </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = `
+                    <div class="bg-stone-100 p-4 rounded-lg mb-4 text-center border border-stone-200">
+                        <h2 class="text-xl font-bold text-stone-700">${day.date} ${day.title}</h2>
+                        <p class="text-stone-500 text-sm mt-1">${day.summary}</p>
+                    </div>
+                    <div class="space-y-3 fade-in">
+                        ${activitiesHtml}
+                    </div>
+                `;
+            } 
+            // --- EDIT MODE ---
+            else {
+                const activitiesHtml = day.activities.map((act, idx) => `
+                <div class="activity-card bg-white p-4 rounded-lg shadow-md border-2 border-amber-100 mb-4 relative">
+                    <button onclick="deleteActivity(${idx})" class="absolute top-2 right-2 text-stone-300 hover:text-red-500">🗑️</button>
+                    
+                    <div class="grid grid-cols-4 gap-2 mb-2">
+                        <div class="col-span-1">
+                            <label class="text-xs text-stone-400">時間</label>
+                            <input type="text" class="input-time edit-input" value="${act.time}">
+                        </div>
+                        <div class="col-span-1">
+                            <label class="text-xs text-stone-400">Icon</label>
+                            <input type="text" class="input-icon edit-input" value="${act.icon}">
+                        </div>
+                        <div class="col-span-1">
+                            <label class="text-xs text-stone-400">標籤</label>
+                            <input type="text" class="input-tag edit-input" value="${act.tag}">
+                        </div>
+                        <div class="col-span-1">
+                            <label class="text-xs text-stone-400">角色</label>
+                            <select class="input-role edit-input bg-white">
+                                <option value="" ${act.role===''?'selected':''}>一般</option>
+                                <option value="boy" ${act.role==='boy'?'selected':''}>👦 男孩</option>
+                                <option value="mom" ${act.role==='mom'?'selected':''}>👩 媽媽</option>
+                                <option value="dad" ${act.role==='dad'?'selected':''}>👨 爸爸</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-2">
+                         <label class="text-xs text-stone-400">標題</label>
+                         <input type="text" class="input-title edit-input font-bold" value="${act.title}">
+                    </div>
+                    
+                    <div>
+                         <label class="text-xs text-stone-400">描述</label>
+                         <textarea class="input-desc edit-input h-16 resize-none">${act.desc}</textarea>
+                    </div>
+                </div>
+                `).join('');
+
+                container.innerHTML = `
+                    <div class="bg-amber-50 p-3 rounded mb-4 text-center border border-amber-200 text-amber-800 text-sm">
+                        正在編輯: ${day.date} (點擊上方「💾 儲存」完成)
+                    </div>
+                    <div class="space-y-4">
+                        ${activitiesHtml}
+                        <button onclick="addActivity()" class="w-full py-3 border-2 border-dashed border-stone-300 text-stone-400 rounded-lg hover:border-amber-400 hover:text-amber-500 transition-colors font-bold">
+                            ➕ 新增活動
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderFoodList() {
+            const container = document.getElementById('food-list-container');
+            container.innerHTML = tripData.foodList.map((item, idx) => `
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-stone-100 flex items-center justify-between cursor-pointer group" onclick="toggleFood(this)">
+                    <div class="flex items-center gap-4">
+                        <div class="bg-amber-50 p-3 rounded-full text-2xl group-hover:bg-amber-100 transition-colors">${item.icon}</div>
+                        <div>
+                            <h3 class="font-bold text-stone-800 line-through-target">${item.name}</h3>
+                            <p class="text-xs text-stone-500">${item.note}</p>
+                        </div>
+                    </div>
+                    <div class="w-6 h-6 rounded-full border-2 border-stone-300 flex items-center justify-center check-circle">
+                        <div class="w-3 h-3 bg-emerald-500 rounded-full hidden check-dot"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleFood(el) {
+            el.querySelector('.check-dot').classList.toggle('hidden');
+            el.querySelector('.line-through-target').classList.toggle('line-through');
+            el.querySelector('.line-through-target').classList.toggle('text-stone-400');
+            el.classList.toggle('bg-stone-50');
+        }
+
+        // --- Chart Initialization ---
+
+        function initCharts() {
+            // Recalculate weights based on current tripData (Simple Logic)
+            let scores = { dad: 0, mom: 0, boy: 0, culture: 0, nature: 0 };
+            
+            tripData.days.forEach(day => {
+                day.activities.forEach(act => {
+                    if(act.role === 'dad') scores.dad += 2;
+                    else if(act.role === 'mom') scores.mom += 2;
+                    else if(act.role === 'boy') scores.boy += 2;
+                    
+                    if(act.tag === '文化' || act.tag === '歷史') scores.culture += 1.5;
+                    if(act.tag === '自然' || act.tag === '釣魚') scores.nature += 1.5;
+                });
+            });
+
+            // Fallback defaults to avoid empty chart
+            const dataValues = [
+                Math.max(4, scores.dad), 
+                Math.max(4, scores.mom), 
+                Math.max(4, scores.boy), 
+                Math.max(3, scores.culture), 
+                Math.max(3, scores.nature)
+            ];
+
+            // Radar Chart
+            const ctxRadar = document.getElementById('interestChart').getContext('2d');
+            
+            // Destroy existing if any (simplest way for vanilla JS reload)
+            if(window.myRadarChart) window.myRadarChart.destroy();
+
+            window.myRadarChart = new Chart(ctxRadar, {
+                type: 'radar',
+                data: {
+                    labels: ['美食 (爸爸)', '購物 (媽媽)', '冒險 (男孩)', '文化 (教育)', '自然 (放鬆)'],
+                    datasets: [{
+                        label: '行程權重分佈',
+                        data: dataValues, 
+                        backgroundColor: 'rgba(217, 119, 6, 0.2)', 
+                        borderColor: 'rgba(217, 119, 6, 1)',
+                        pointBackgroundColor: 'rgba(217, 119, 6, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(217, 119, 6, 1)'
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: '#e5e7eb' },
+                            grid: { color: '#e5e7eb' },
+                            pointLabels: {
+                                font: { size: 12, family: "'Noto Sans TC', sans-serif" },
+                                color: '#44403c' 
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 10
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Doughnut Chart (Static for demo mostly, but could be dynamic similarly)
+            const ctxDoughnut = document.getElementById('activityChart').getContext('2d');
+             if(window.myDoughnutChart) window.myDoughnutChart.destroy();
+
+            window.myDoughnutChart = new Chart(ctxDoughnut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['景點/體驗', '美食/用餐', '購物', '交通/移動'],
+                    datasets: [{
+                        data: [35, 25, 20, 20],
+                        backgroundColor: ['#38bdf8', '#fbbf24', '#fb7185', '#a8a29e'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { family: "'Noto Sans TC', sans-serif" },
+                                color: '#57534e'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- AI Assistant Logic (Gemini API) ---
+
+        const apiKey = ""; // Runtime provided
+        const chatModal = document.getElementById('ai-chat-modal');
+        const chatHistory = document.getElementById('chat-history');
+        const chatInput = document.getElementById('chat-input');
+        
+        // Toggle Chat Modal
+        function toggleAIChat() {
+            chatModal.classList.toggle('hidden');
+        }
+        
+        // Specific trigger (opens chat and auto-sends prompt)
+        function triggerAIChat(prompt) {
+            chatModal.classList.remove('hidden');
+            sendPrompt(prompt);
+        }
+
+        // Handle Enter key
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') handleUserSend();
+        }
+
+        // Handle User Send
+        function handleUserSend() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+            sendPrompt(text);
+            chatInput.value = '';
+        }
+
+        // Core Send Logic
+        async function sendPrompt(text) {
+            // Add User Message
+            appendMessage(text, 'user');
+            
+            // Show Loading
+            const loadingId = appendLoading();
+            
+            try {
+                const responseText = await callGeminiAPI(text);
+                removeMessage(loadingId);
+                appendMessage(responseText, 'ai');
+            } catch (error) {
+                removeMessage(loadingId);
+                appendMessage("抱歉，目前連線不穩，請稍後再試。", 'ai');
+                console.error(error);
+            }
+        }
+
+        function appendMessage(text, sender) {
+            const div = document.createElement('div');
+            div.className = `chat-bubble ${sender === 'user' ? 'user-msg' : 'ai-msg'}`;
+            if (sender === 'ai') {
+                div.innerHTML = marked.parse(text); // Use Markdown for AI
+            } else {
+                div.textContent = text;
+            }
+            chatHistory.appendChild(div);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+            return div.id;
+        }
+
+        function appendLoading() {
+            const id = 'loading-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'chat-bubble ai-msg';
+            div.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+            chatHistory.appendChild(div);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+            return id;
+        }
+
+        function removeMessage(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        // API Call with Backoff
+        async function callGeminiAPI(userQuery) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const systemPrompt = "你是一位專業的廣島旅遊導遊，專門協助帶有9歲和13歲男孩的家庭。你非常了解廣島燒、牡蠣、吳市海軍歷史以及適合自駕遊的景點。請用繁體中文回答，語氣親切熱情，回答盡量簡潔實用。";
+            
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            const maxRetries = 5;
+            let attempt = 0;
+            
+            while (attempt < maxRetries) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text || "無法取得回應。";
+                } catch (error) {
+                    attempt++;
+                    if (attempt >= maxRetries) throw error;
+                    await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+                }
+            }
+        }
+
+        // Start App
+        window.addEventListener('DOMContentLoaded', initApp);
+
+    </script>
+</body>
+</html>
